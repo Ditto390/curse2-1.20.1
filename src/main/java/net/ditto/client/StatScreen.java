@@ -91,10 +91,11 @@ public class StatScreen extends Screen {
             // Left align text, buttons are on right
             int startX = centerX - 80;
 
-            drawStatRow(context, "Physique", data.ditto$getPhysique(), startX, centerY - 40, 0xFF5555); // Red
-            drawStatRow(context, "Finesse", data.ditto$getFinesse(), startX, centerY - 10, 0x55FF55);  // Green
-            drawStatRow(context, "Vitality", data.ditto$getVitality(), startX, centerY + 20, 0x5555FF); // Blue
-            drawStatRow(context, "Bond", data.ditto$getBond(), startX, centerY + 50, 0xFF55FF);     // Purple
+            // FIXED: Added 0xFF at the start of colors to ensure they are OPAQUE (Alpha 255)
+            drawStatRow(context, "Physique", data.ditto$getPhysique(), startX, centerY - 40, 0xFFFF5555); // Red
+            drawStatRow(context, "Finesse", data.ditto$getFinesse(), startX, centerY - 10, 0xFF55FF55);  // Green
+            drawStatRow(context, "Vitality", data.ditto$getVitality(), startX, centerY + 20, 0xFF5555FF); // Blue
+            drawStatRow(context, "Bond", data.ditto$getBond(), startX, centerY + 50, 0xFFFF55FF);     // Purple
         }
 
         super.render(context, mouseX, mouseY, delta);
@@ -107,8 +108,11 @@ public class StatScreen extends Screen {
 
         // Visual Bar (Background)
         context.fill(x, y + 10, x + 130, y + 12, 0xFF202020);
+
         // Visual Bar (Foreground - max out at lvl 100 visual for scaling)
-        int fillWidth = Math.min(130, (int)((value / 50.0f) * 130));
+        // FIXED: Changed divisor from 50.0f to 100.0f to match STAT_CAP and prevent early max-out
+        int fillWidth = Math.min(130, (int)((value / 100.0f) * 130));
+
         context.fill(x, y + 10, x + fillWidth, y + 12, color);
     }
 
