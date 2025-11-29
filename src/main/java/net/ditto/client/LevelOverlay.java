@@ -22,13 +22,13 @@ public class LevelOverlay implements HudRenderCallback {
             int windowWidth = client.getWindow().getScaledWidth();
             int windowHeight = client.getWindow().getScaledHeight();
 
-            // Dimensions: Thinner (5px) and shorter (70px) to look more like a vanilla HUD element
-            int barWidth = 70;
-            int barHeight = 5;
+            // Dimensions: Thinner (3px) and smaller (50px)
+            int barWidth = 50;
+            int barHeight = 3;
 
-            // Position: Move to the right side of the screen
-            // 15 pixels padding from the right edge, 30 pixels up from bottom
-            int x = windowWidth - barWidth - 15;
+            // Position: Move to the very right side of the screen
+            // 2 pixels padding from the right edge
+            int x = windowWidth - barWidth - 2;
             int y = windowHeight - 30;
 
             // Draw Background (Dark Grey/Black to resemble empty XP bar slot)
@@ -37,6 +37,15 @@ public class LevelOverlay implements HudRenderCallback {
             // Draw Progress (Vanilla XP Green: 0xFF80FF20)
             float progress = (float) currentXp / nextLevelXp;
             int filledWidth = (int) (barWidth * progress);
+
+            // Fix: Ensure at least 1 pixel is shown if player has any XP (visual feedback for small gains)
+            if (currentXp > 0 && filledWidth == 0) {
+                filledWidth = 1;
+            }
+            // Cap width to bar size
+            if (filledWidth > barWidth) {
+                filledWidth = barWidth;
+            }
 
             // Only draw the green fill if we have XP
             if (filledWidth > 0) {
@@ -56,7 +65,7 @@ public class LevelOverlay implements HudRenderCallback {
             String text = "Lvl " + level;
             int textWidth = font.getWidth(text);
 
-            // Position text centered relative to the bar, and 10 pixels above it
+            // Position text centered relative to the bar, and 10 pixels above it to avoid cropping
             context.drawTextWithShadow(font, text, x + (barWidth / 2) - (textWidth / 2), y - 10, 0xFF80FF20);
         }
     }
