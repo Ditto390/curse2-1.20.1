@@ -57,25 +57,34 @@ public class LevelOverlay implements HudRenderCallback {
             context.drawTextWithShadow(font, lvlText, x + (barWidth / 2) - (lvlTextWidth / 2), y - 10, 0xFF80FF20);
 
 
-            // --- 2. NEW SHIKAI HUD LOGIC ---
+            // --- 2. UPDATED COMPACT SHIKAI HUD ---
             ShikaiType shikai = stats.ditto$getShikaiType();
 
-            // Only show if the player actually has a Shikai assigned
             if (shikai != ShikaiType.NONE) {
                 ShikaiType.Form form = stats.ditto$getForm();
                 int abilityIndex = stats.ditto$getSelectedAbilityIndex();
 
-                // --- Draw Form Name (e.g., "ZANGETSU - SHIKAI") ---
-                // Position: Above the Level Text
+                // PUSH MATRIX to Scale Down
+                context.getMatrices().push();
+
+                // Scale to 0.75x (Smaller)
+                float scale = 0.75f;
+                context.getMatrices().scale(scale, scale, 1.0f);
+
+                // Re-calculate coordinates because scaling affects the grid
+                // We want it anchored to the right side, so we divide coordinates by scale
+                int scaledWidth = (int) (windowWidth / scale);
+                int scaledY = (int) (y / scale);
+
+                // --- Draw Form Name ---
                 String formText = shikai.name() + " [" + form.name() + "]";
-                int formColor = (form == ShikaiType.Form.SEALED) ? 0xAAAAAA : 0xFFD700; // Grey for Sealed, Gold for Shikai/Bankai
+                int formColor = (form == ShikaiType.Form.SEALED) ? 0xAAAAAA : 0xFFD700;
                 int formWidth = font.getWidth(formText);
 
-                // Align to the right side
-                context.drawTextWithShadow(font, formText, windowWidth - formWidth - 5, y - 35, formColor);
+                // Position: Right side, slightly above XP bar area
+                context.drawTextWithShadow(font, formText, scaledWidth - formWidth - 5, scaledY - 25, formColor);
 
-                // --- Draw Selected Ability (e.g., ">> Getsuga Tenshou <<") ---
-                // Position: Above the Form Name
+                // --- Draw Selected Ability ---
                 List<Ability> abilities = shikai.getAbilitiesForForm(form);
                 String abilityName = "No Ability";
 
@@ -83,14 +92,17 @@ public class LevelOverlay implements HudRenderCallback {
                     if (abilityIndex >= 0 && abilityIndex < abilities.size()) {
                         abilityName = abilities.get(abilityIndex).getName();
                     }
-                    // Add arrows to indicate it's a selection
                     abilityName = "« " + abilityName + " »";
                 } else {
                     abilityName = "---";
                 }
 
                 int abilityWidth = font.getWidth(abilityName);
-                context.drawTextWithShadow(font, abilityName, windowWidth - abilityWidth - 5, y - 45, 0xFF55FFFF); // Light Blue
+                // Position: Above Form Name
+                context.drawTextWithShadow(font, abilityName, scaledWidth - abilityWidth - 5, scaledY - 35, 0xFF55FFFF);
+
+                // POP MATRIX to return to normal scaling for other elements
+                context.getMatrices().pop();
             }
         }
     }

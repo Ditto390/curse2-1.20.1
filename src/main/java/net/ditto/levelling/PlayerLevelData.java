@@ -35,7 +35,7 @@ public interface PlayerLevelData {
     void ditto$setBond(int value);
     void ditto$increaseBond();
 
-    // --- Shikai & Abilities (New) ---
+    // --- Shikai & Abilities ---
     ShikaiType ditto$getShikaiType();
     void ditto$setShikaiType(ShikaiType type);
 
@@ -43,11 +43,12 @@ public interface PlayerLevelData {
     void ditto$setForm(ShikaiType.Form form);
 
     int ditto$getSelectedAbilityIndex();
-    void ditto$cycleAbility(int direction); // Pass 1 for next, -1 for previous
+    void ditto$setSelectedAbilityIndex(int index); // NEW: Allow setting index directly
+    void ditto$cycleAbility(int direction);
 
     // --- Sync & Core ---
-    void ditto$syncLevel();      // Syncs stats/level
-    void ditto$syncAbilities();  // Syncs Shikai/Form/Ability Selection
+    void ditto$syncLevel();
+    void ditto$syncAbilities();
 
-    void ditto$copyFrom(PlayerLevelData old); // Handles death persistence
+    void ditto$copyFrom(PlayerLevelData old);
 }

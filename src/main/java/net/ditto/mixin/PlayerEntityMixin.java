@@ -73,6 +73,11 @@ public abstract class PlayerEntityMixin implements PlayerLevelData {
     }
 
     @Override
+    public void ditto$setSelectedAbilityIndex(int index) {
+        this.selectedAbilityIndex = index;
+    }
+
+    @Override
     public void ditto$cycleAbility(int direction) {
         var abilities = shikaiType.getAbilitiesForForm(currentForm);
         if (abilities.isEmpty()) return;
@@ -119,7 +124,6 @@ public abstract class PlayerEntityMixin implements PlayerLevelData {
 
         // Copy Shikai Data
         this.shikaiType = old.ditto$getShikaiType();
-        // We generally reset form to SEALED on respawn, but you can copy it if you want.
         this.currentForm = ShikaiType.Form.SEALED;
 
         // Important: Update attributes on the new server entity immediately

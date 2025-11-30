@@ -1,0 +1,1 @@
+{  "parent": "minecraft:item/handheld",  "textures": {    "layer0": "curse2:item/zampato_shikai"  }}

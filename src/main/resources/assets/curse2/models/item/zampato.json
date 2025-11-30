@@ -1,1 +1,1 @@
-{  "parent": "minecraft:item/iron_sword"}
+{  "parent": "minecraft:item/handheld",  "textures": {    "layer0": "curse2:item/zampato"  },  "overrides": [    {      "predicate": {        "custom_model_data": 1      },      "model": "curse2:item/zampato_shikai"    }  ]}
