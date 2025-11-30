@@ -1,6 +1,7 @@
 package net.ditto;
 
 import net.ditto.command.CurseCommand;
+import net.ditto.item.ModItems; // Import ModItems
 import net.ditto.levelling.PlayerLevelData;
 import net.ditto.networking.ModNetworking;
 import net.fabricmc.api.ModInitializer;
@@ -19,13 +20,16 @@ public class Curse2 implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("Hello Fabric world!");
 
+        // 0. Register Items (Make sure this line is present!)
+        ModItems.registerModItems();
+
+        // Register Commands
         CommandRegistrationCallback.EVENT.register(CurseCommand::register);
 
         // 1. Register Packets (Vital for stat menu buttons)
         ModNetworking.registerServerPackets();
 
         // 2. DATA PERSISTENCE (Fixes Stats Resetting on Death)
-        // This runs when the new entity is created. We copy the stats here.
         ServerPlayerEvents.COPY_FROM.register((oldPlayer, newPlayer, alive) -> {
             if (newPlayer instanceof PlayerLevelData newDitto && oldPlayer instanceof PlayerLevelData oldDitto) {
                 newDitto.ditto$copyFrom(oldDitto);
@@ -33,7 +37,6 @@ public class Curse2 implements ModInitializer {
         });
 
         // 3. VISUAL SYNC (Fixes Bar not updating after Respawn)
-        // This runs AFTER the player has officially respawned.
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (newPlayer instanceof PlayerLevelData playerData) {
                 playerData.ditto$syncLevel();
