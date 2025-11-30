@@ -1,11 +1,14 @@
 package net.ditto.client;
 
+import net.ditto.ability.Ability;
+import net.ditto.ability.ShikaiType;
 import net.ditto.levelling.LevelSystem;
 import net.ditto.levelling.PlayerLevelData;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import java.util.List;
 
 public class LevelOverlay implements HudRenderCallback {
 
@@ -22,51 +25,73 @@ public class LevelOverlay implements HudRenderCallback {
             int windowWidth = client.getWindow().getScaledWidth();
             int windowHeight = client.getWindow().getScaledHeight();
 
-            // Dimensions: Thinner (3px) and smaller (50px)
+            // --- 1. EXISTING XP BAR LOGIC ---
             int barWidth = 50;
             int barHeight = 3;
-
-            // Position: Move to the very right side of the screen
-            // 2 pixels padding from the right edge
             int x = windowWidth - barWidth - 2;
             int y = windowHeight - 30;
 
-            // Draw Background (Dark Grey/Black to resemble empty XP bar slot)
             context.fill(x, y, x + barWidth, y + barHeight, 0xFF202020);
 
-            // Draw Progress (Vanilla XP Green: 0xFF80FF20)
             float progress = (float) currentXp / nextLevelXp;
             int filledWidth = (int) (barWidth * progress);
 
-            // Fix: Ensure at least 1 pixel is shown if player has any XP (visual feedback for small gains)
-            if (currentXp > 0 && filledWidth == 0) {
-                filledWidth = 1;
-            }
-            // Cap width to bar size
-            if (filledWidth > barWidth) {
-                filledWidth = barWidth;
-            }
+            if (currentXp > 0 && filledWidth == 0) filledWidth = 1;
+            if (filledWidth > barWidth) filledWidth = barWidth;
 
-            // Only draw the green fill if we have XP
             if (filledWidth > 0) {
                 context.fill(x, y, x + filledWidth, y + barHeight, 0xFF80FF20);
             }
 
-            // Draw Border (Manual fills for crisp 1px black outline)
+            // Draw Border
             int borderColor = 0xFF000000;
-            context.fill(x - 1, y - 1, x + barWidth + 1, y, borderColor); // Top
-            context.fill(x - 1, y + barHeight, x + barWidth + 1, y + barHeight + 1, borderColor); // Bottom
-            context.fill(x - 1, y, x, y + barHeight, borderColor); // Left
-            context.fill(x + barWidth, y, x + barWidth + 1, y + barHeight, borderColor); // Right
+            context.fill(x - 1, y - 1, x + barWidth + 1, y, borderColor);
+            context.fill(x - 1, y + barHeight, x + barWidth + 1, y + barHeight + 1, borderColor);
+            context.fill(x - 1, y, x, y + barHeight, borderColor);
+            context.fill(x + barWidth, y, x + barWidth + 1, y + barHeight, borderColor);
 
             // Draw Level Text
-            // Centered above the bar, using the same Green color for style
             TextRenderer font = client.textRenderer;
-            String text = "Lvl " + level;
-            int textWidth = font.getWidth(text);
+            String lvlText = "Lvl " + level;
+            int lvlTextWidth = font.getWidth(lvlText);
+            context.drawTextWithShadow(font, lvlText, x + (barWidth / 2) - (lvlTextWidth / 2), y - 10, 0xFF80FF20);
 
-            // Position text centered relative to the bar, and 10 pixels above it to avoid cropping
-            context.drawTextWithShadow(font, text, x + (barWidth / 2) - (textWidth / 2), y - 10, 0xFF80FF20);
+
+            // --- 2. NEW SHIKAI HUD LOGIC ---
+            ShikaiType shikai = stats.ditto$getShikaiType();
+
+            // Only show if the player actually has a Shikai assigned
+            if (shikai != ShikaiType.NONE) {
+                ShikaiType.Form form = stats.ditto$getForm();
+                int abilityIndex = stats.ditto$getSelectedAbilityIndex();
+
+                // --- Draw Form Name (e.g., "ZANGETSU - SHIKAI") ---
+                // Position: Above the Level Text
+                String formText = shikai.name() + " [" + form.name() + "]";
+                int formColor = (form == ShikaiType.Form.SEALED) ? 0xAAAAAA : 0xFFD700; // Grey for Sealed, Gold for Shikai/Bankai
+                int formWidth = font.getWidth(formText);
+
+                // Align to the right side
+                context.drawTextWithShadow(font, formText, windowWidth - formWidth - 5, y - 35, formColor);
+
+                // --- Draw Selected Ability (e.g., ">> Getsuga Tenshou <<") ---
+                // Position: Above the Form Name
+                List<Ability> abilities = shikai.getAbilitiesForForm(form);
+                String abilityName = "No Ability";
+
+                if (!abilities.isEmpty()) {
+                    if (abilityIndex >= 0 && abilityIndex < abilities.size()) {
+                        abilityName = abilities.get(abilityIndex).getName();
+                    }
+                    // Add arrows to indicate it's a selection
+                    abilityName = "« " + abilityName + " »";
+                } else {
+                    abilityName = "---";
+                }
+
+                int abilityWidth = font.getWidth(abilityName);
+                context.drawTextWithShadow(font, abilityName, windowWidth - abilityWidth - 5, y - 45, 0xFF55FFFF); // Light Blue
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package net.ditto.mixin;
 
+import net.ditto.ability.ShikaiType;
 import net.ditto.levelling.PlayerLevelData;
 import net.ditto.networking.ModNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -19,6 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(PlayerEntity.class)
 public abstract class PlayerEntityMixin implements PlayerLevelData {
 
+    // --- Existing Stats Fields ---
     @Unique private int dittoLevel = 1;
     @Unique private int dittoCurrentXp = 0;
     @Unique private int statPoints = 0;
@@ -27,6 +29,12 @@ public abstract class PlayerEntityMixin implements PlayerLevelData {
     @Unique private int vitality = 1;
     @Unique private int bond = 1;
 
+    // --- New Shikai Fields ---
+    @Unique private ShikaiType shikaiType = ShikaiType.NONE;
+    @Unique private ShikaiType.Form currentForm = ShikaiType.Form.SEALED;
+    @Unique private int selectedAbilityIndex = 0;
+
+    // --- Getters ---
     @Override public int ditto$getLevel() { return dittoLevel; }
     @Override public int ditto$getCurrentXp() { return dittoCurrentXp; }
     @Override public int ditto$getStatPoints() { return statPoints; }
@@ -35,46 +43,46 @@ public abstract class PlayerEntityMixin implements PlayerLevelData {
     @Override public int ditto$getVitality() { return vitality; }
     @Override public int ditto$getBond() { return bond; }
 
+    @Override public ShikaiType ditto$getShikaiType() { return shikaiType; }
+    @Override public ShikaiType.Form ditto$getForm() { return currentForm; }
+    @Override public int ditto$getSelectedAbilityIndex() { return selectedAbilityIndex; }
+
+    // --- Setters & Logic ---
     @Override public void ditto$setLevel(int level) { this.dittoLevel = level; }
     @Override public void ditto$setCurrentXp(int xp) { this.dittoCurrentXp = xp; }
     @Override public void ditto$setStatPoints(int points) { this.statPoints = points; }
     @Override public void ditto$addStatPoints(int points) { this.statPoints += points; }
 
-    @Override
-    public void ditto$setPhysique(int value) {
-        this.physique = value;
-        updateAttributes();
-    }
-    @Override
-    public void ditto$increasePhysique() {
-        this.physique++;
-        updateAttributes();
-    }
+    @Override public void ditto$setPhysique(int value) { this.physique = value; updateAttributes(); }
+    @Override public void ditto$increasePhysique() { this.physique++; updateAttributes(); }
 
-    @Override
-    public void ditto$setFinesse(int value) {
-        this.finesse = value;
-        updateAttributes();
-    }
-    @Override
-    public void ditto$increaseFinesse() {
-        this.finesse++;
-        updateAttributes();
-    }
+    @Override public void ditto$setFinesse(int value) { this.finesse = value; updateAttributes(); }
+    @Override public void ditto$increaseFinesse() { this.finesse++; updateAttributes(); }
 
-    @Override
-    public void ditto$setVitality(int value) {
-        this.vitality = value;
-        updateAttributes();
-    }
-    @Override
-    public void ditto$increaseVitality() {
-        this.vitality++;
-        updateAttributes();
-    }
+    @Override public void ditto$setVitality(int value) { this.vitality = value; updateAttributes(); }
+    @Override public void ditto$increaseVitality() { this.vitality++; updateAttributes(); }
 
     @Override public void ditto$setBond(int value) { this.bond = value; }
     @Override public void ditto$increaseBond() { this.bond++; }
+
+    @Override public void ditto$setShikaiType(ShikaiType type) { this.shikaiType = type; }
+    @Override
+    public void ditto$setForm(ShikaiType.Form form) {
+        this.currentForm = form;
+        this.selectedAbilityIndex = 0; // Reset selection on form change
+    }
+
+    @Override
+    public void ditto$cycleAbility(int direction) {
+        var abilities = shikaiType.getAbilitiesForForm(currentForm);
+        if (abilities.isEmpty()) return;
+
+        selectedAbilityIndex += direction;
+
+        // Wrap around logic
+        if (selectedAbilityIndex >= abilities.size()) selectedAbilityIndex = 0;
+        if (selectedAbilityIndex < 0) selectedAbilityIndex = abilities.size() - 1;
+    }
 
     @Unique
     private void updateAttributes() {
@@ -96,8 +104,11 @@ public abstract class PlayerEntityMixin implements PlayerLevelData {
         }
     }
 
+    // --- Persistence & Sync ---
+
     @Override
     public void ditto$copyFrom(PlayerLevelData old) {
+        // Copy Stats
         this.dittoLevel = old.ditto$getLevel();
         this.dittoCurrentXp = old.ditto$getCurrentXp();
         this.statPoints = old.ditto$getStatPoints();
@@ -105,6 +116,12 @@ public abstract class PlayerEntityMixin implements PlayerLevelData {
         this.finesse = old.ditto$getFinesse();
         this.vitality = old.ditto$getVitality();
         this.bond = old.ditto$getBond();
+
+        // Copy Shikai Data
+        this.shikaiType = old.ditto$getShikaiType();
+        // We generally reset form to SEALED on respawn, but you can copy it if you want.
+        this.currentForm = ShikaiType.Form.SEALED;
+
         // Important: Update attributes on the new server entity immediately
         updateAttributes();
     }
@@ -124,8 +141,22 @@ public abstract class PlayerEntityMixin implements PlayerLevelData {
         }
     }
 
+    @Override
+    public void ditto$syncAbilities() {
+        if ((Object)this instanceof ServerPlayerEntity serverPlayer) {
+            PacketByteBuf buf = PacketByteBufs.create();
+            buf.writeInt(shikaiType.ordinal());
+            buf.writeInt(currentForm.ordinal());
+            buf.writeInt(selectedAbilityIndex);
+            ServerPlayNetworking.send(serverPlayer, ModNetworking.ABILITY_SYNC_ID, buf);
+        }
+    }
+
+    // --- NBT Data ---
+
     @Inject(method = "writeCustomDataToNbt", at = @At("TAIL"))
     public void writeLevelData(NbtCompound nbt, CallbackInfo ci) {
+        // Stats
         nbt.putInt("DittoLevel", dittoLevel);
         nbt.putInt("DittoXP", dittoCurrentXp);
         nbt.putInt("DittoPoints", statPoints);
@@ -133,10 +164,15 @@ public abstract class PlayerEntityMixin implements PlayerLevelData {
         nbt.putInt("DittoFinesse", finesse);
         nbt.putInt("DittoVitality", vitality);
         nbt.putInt("DittoBond", bond);
+
+        // Shikai
+        nbt.putString("DittoShikai", shikaiType.name());
+        nbt.putString("DittoForm", currentForm.name());
     }
 
     @Inject(method = "readCustomDataFromNbt", at = @At("TAIL"))
     public void readLevelData(NbtCompound nbt, CallbackInfo ci) {
+        // Stats
         if (nbt.contains("DittoLevel")) {
             dittoLevel = nbt.getInt("DittoLevel");
             dittoCurrentXp = nbt.getInt("DittoXP");
@@ -146,6 +182,18 @@ public abstract class PlayerEntityMixin implements PlayerLevelData {
             vitality = nbt.getInt("DittoVitality");
             bond = nbt.getInt("DittoBond");
             updateAttributes();
+        }
+
+        // Shikai
+        if (nbt.contains("DittoShikai")) {
+            try {
+                shikaiType = ShikaiType.valueOf(nbt.getString("DittoShikai"));
+                currentForm = ShikaiType.Form.valueOf(nbt.getString("DittoForm"));
+            } catch (IllegalArgumentException | NullPointerException ignored) {
+                // Fallback if enum names changed or data is corrupt
+                shikaiType = ShikaiType.NONE;
+                currentForm = ShikaiType.Form.SEALED;
+            }
         }
     }
 }
